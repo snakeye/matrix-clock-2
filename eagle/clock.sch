@@ -19918,6 +19918,25 @@ Source: www.kingbright.com</description>
 <pinref part="LED1" gate="G$1" pin="A"/>
 </segment>
 </net>
+<net name="GPIO0" class="0">
+<segment>
+<pinref part="U2" gate="G$1" pin="GPIO0"/>
+<wire x1="144.78" y1="15.24" x2="152.4" y2="15.24" width="0.1524" layer="91"/>
+<label x="152.4" y="15.24" size="1.27" layer="95" xref="yes"/>
+</segment>
+<segment>
+<pinref part="JP1" gate="A" pin="6"/>
+<wire x1="27.94" y1="-17.78" x2="35.56" y2="-17.78" width="0.1524" layer="91"/>
+<label x="35.56" y="-17.78" size="1.27" layer="95" xref="yes"/>
+</segment>
+</net>
+<net name="N$2" class="0">
+<segment>
+<pinref part="U2" gate="G$1" pin="GPIO16"/>
+<wire x1="111.76" y1="17.78" x2="104.14" y2="17.78" width="0.1524" layer="91"/>
+<label x="104.14" y="17.78" size="1.27" layer="95" rot="MR0" xref="yes"/>
+</segment>
+</net>
 </nets>
 </sheet>
 </sheets>
