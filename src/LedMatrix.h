@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include <SPI.h>
 
-#include "cp437font.h"
+#include "font.h"
 
 // max7219 registers
 #define MAX7219_REG_NOOP         0x0
@@ -25,6 +25,7 @@
 #define TEXT_ALIGN_LEFT_END      1 // Beginning of text is just outside the right end of the display
 #define TEXT_ALIGN_RIGHT         2 // End of text is aligned to the right of the display
 #define TEXT_ALIGN_RIGHT_END     3 // End of text is just outside the left side of the display
+#define TEXT_ALIGN_CENTER        4 // center
 
 namespace MAX7219 {
 
@@ -129,7 +130,7 @@ class LedMatrix {
 
        @scope: display
     */
-    void setIntensity(byte intensity) {
+    void setIntensity(int intensity) {
       sendByte(MAX7219_REG_INTENSITY, intensity);
     }
 
@@ -139,8 +140,9 @@ class LedMatrix {
 
        @scope: display
     */
-    void setTextAlignment(byte textAlignment) {
-
+    void setTextAlignment(int textAlignment) {
+      myTextAlignment = textAlignment;
+      calculateTextAlignmentOffset();
     }
 
     /**
@@ -173,6 +175,42 @@ class LedMatrix {
     }
 
     /**
+
+    */
+    int drawChar(int x, int y, char ch) {
+      if (ch > 127 || font == NULL)
+        return 0;
+
+      byte mask = (y >= 0) ? (0xFF << y) : (0xFF > y);
+
+      // character width
+      int char_width = font->getCharWidth(ch);
+      if (char_width == 0)
+        return 0;
+
+      // draw character
+      for (int j = 0; j < char_width; j++)
+      {
+        int col = x + j;
+
+        if (col >= 0 && col < (matrixCount * 8))
+        {
+          // read column pixels from program memory
+          byte pixels = font->getCharColumn(ch, j);
+
+          // shift pixels
+          pixels = (y >= 0) ? (pixels << y) : (pixels >> (-y));
+
+          // update canvas
+          frameBuffer[col] &= ~(mask);
+          frameBuffer[col] |= pixels;
+        }
+      }
+
+      return char_width;
+    }
+
+    /**
        Draw the current text at the current offset with the current font
     */
     void drawText() {
@@ -180,14 +218,15 @@ class LedMatrix {
         return;
       }
 
+      int x = myTextOffset + myTextAlignmentOffset;
+      int y = 0;
+
       for (int i = 0; i < myText.length(); i++) {
         char letter = myText.charAt(i);
-        for (int col = 0; col < 8; col++) {
-          int position = i * font->getCharWidth() + col + myTextOffset + myTextAlignmentOffset;
-          if (position >= 0 && position < matrixCount * 8) {
-            setColumn(position, font->getCharColumn(letter, col));
-          }
-        }
+
+        int char_width = drawChar(x, y, letter);
+
+        x += char_width + 1;
       }
     }
 
@@ -228,7 +267,7 @@ class LedMatrix {
        Scroll the text to the left.
     */
     void scrollTextLeft() {
-      myTextOffset = (myTextOffset - 1) % ((int)myText.length() * font->getCharWidth() + matrixCount * 8);
+      myTextOffset = (myTextOffset - 1) % (font->getStringWidth(myText) + matrixCount * 8);
     }
 
 
@@ -250,6 +289,7 @@ class LedMatrix {
        @scope: display
     */
     void calculateTextAlignmentOffset() {
+      int stringWidth = font->getStringWidth(myText);
       switch (myTextAlignment) {
         case TEXT_ALIGN_LEFT:
           myTextAlignmentOffset = 0;
@@ -258,11 +298,13 @@ class LedMatrix {
           myTextAlignmentOffset = matrixCount * 8;
           break;
         case TEXT_ALIGN_RIGHT:
-          myTextAlignmentOffset = myText.length() * font->getCharWidth() - matrixCount * 8;
+          myTextAlignmentOffset = stringWidth - matrixCount * 8;
           break;
         case TEXT_ALIGN_RIGHT_END:
-          myTextAlignmentOffset = - myText.length() * font->getCharWidth();
+          myTextAlignmentOffset = -stringWidth;
           break;
+        case TEXT_ALIGN_CENTER:
+          myTextAlignmentOffset = (matrixCount * 8 - stringWidth) / 2;
       }
     }
 
