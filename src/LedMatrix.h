@@ -29,14 +29,20 @@
 
 namespace MAX7219 {
 
+/**
+   Template class to define pin assignment
+*/
 template<const int CS_PIN>
 class PinAssignment {
   public:
     static const int pinCS = CS_PIN;
 };
 
+/**
+   Display driver
+*/
 template<const int matrixCount, class PinAssignment>
-class LedMatrix {
+class DisplayDriver {
   public:
     // width of the display in pixels
     const int width = matrixCount * 8;
@@ -45,59 +51,54 @@ class LedMatrix {
 
   public:
     /**
-      Set font for display
-    */
-    void setFont(Font* newFont) {
-      font = newFont;
-    }
+      Initializes the SPI interface
 
-    /**
-       Initializes the SPI interface
-
-       @scope: device driver
+      @scope: device driver
     */
     void init() {
       pinMode(PinAssignment::pinCS, OUTPUT);
 
-      SPI.begin ();
+      // start SPI
+      SPI.begin();
       SPI.setDataMode(SPI_MODE0);
       SPI.setClockDivider(SPI_CLOCK_DIV128);
 
+      // initialize MAX7219 devices
       for (int device = 0; device < matrixCount; device++) {
         sendByte(device, MAX7219_REG_SCANLIMIT, 7);   // show all 8 digits
-        sendByte(device, MAX7219_REG_DECODEMODE, 0);  // using an led matrix (not digits)
+        sendByte(device, MAX7219_REG_DECODEMODE, 0); // using an led matrix (not digits)
         sendByte(device, MAX7219_REG_DISPLAYTEST, 0); // no display test
-        sendByte(device, MAX7219_REG_INTENSITY, 0);   // character intensity: range: 0 to 15
-        sendByte(device, MAX7219_REG_SHUTDOWN, 1);    // not in shutdown mode (ie. start it up)
+        sendByte(device, MAX7219_REG_INTENSITY, 0); // character intensity: range: 0 to 15
+        sendByte(device, MAX7219_REG_SHUTDOWN, 1); // not in shutdown mode (ie. start it up)
       }
     }
 
     /**
-       Send block of data to the displays
+      Send block of data to the displays
 
-       @scope: device driver
+      @scope: device driver
     */
-    void sendBytes(const byte spiregister[matrixCount], const byte spidata[matrixCount]) {
+    void sendBytes(const byte spiregister[matrixCount],	const byte spidata[matrixCount]) {
       // enable the line
       digitalWrite(PinAssignment::pinCS, LOW);
 
       // now shift out the data
       for (int i = 0; i < matrixCount; i++) {
-        SPI.transfer (spiregister[matrixCount - i - 1]);
-        SPI.transfer (spidata[matrixCount - i - 1]);
+        SPI.transfer(spiregister[matrixCount - i - 1]);
+        SPI.transfer(spidata[matrixCount - i - 1]);
       }
 
-      digitalWrite (PinAssignment::pinCS, HIGH);
+      digitalWrite(PinAssignment::pinCS, HIGH);
     }
 
     /**
-       Send a byte to a specific device.
+      Send a byte to a specific device.
 
-       @scope: device driver
+      @scope: device driver
     */
-    void sendByte (const byte device, const byte reg, const byte data) {
-      byte spidata[matrixCount] = {0};
-      byte spiregister[matrixCount] = {0};
+    void sendByte(const byte device, const byte reg, const byte data) {
+      byte spidata[matrixCount] = { 0 };
+      byte spiregister[matrixCount] = { 0 };
 
       // put our device data into the array
       spiregister[device] = reg;
@@ -107,12 +108,11 @@ class LedMatrix {
     }
 
     /**
-       Send a byte to all devices (convenience method).
+      Send a byte to all devices (convenience method).
 
-       @todo: rename
-       @scope: device driver
+      @scope: device driver
     */
-    void sendByte (const byte reg, const byte data) {
+    void sendByte(const byte reg, const byte data) {
       byte spidata[matrixCount];
       byte spiregister[matrixCount];
 
@@ -123,55 +123,85 @@ class LedMatrix {
 
       sendBytes(spiregister, spidata);
     }
+};
+
+/**
+
+*/
+template<const int width, const int height>
+class FrameBuffer {
+  protected:
+    /**
+      Set a specific column with a byte value to the frame buffer.
+
+      @scope: frame buffer
+    */
+    void setColumn(int col, byte value) {
+      if (col < 0 || col >= width) {
+        return;
+      }
+
+      frameBuffer[col] = value;
+    }
+
+  protected:
+    byte frameBuffer[width] = { 0 };
+};
+
+/**
+   Main display class
+*/
+template<const int matrixCount, class PinAssignment>
+class LedMatrix: public DisplayDriver<matrixCount, PinAssignment>, public FrameBuffer<matrixCount * 8, 8> {
+  private:
+    typedef DisplayDriver<matrixCount, PinAssignment> Driver;
+    typedef FrameBuffer<matrixCount * 8, 8> TFrameBuffer;
+  
+  public:
+    /**
+      Set font for display
+    */
+    void setFont(Font* newFont) {
+      font = newFont;
+    }
 
     /**
-       Sets the intensity on all devices.
-       intensity: 0-15
+      Sets the intensity on all devices.
+      intensity: 0-15
 
-       @scope: display
+      @scope: display
     */
     void setIntensity(int intensity) {
-      sendByte(MAX7219_REG_INTENSITY, intensity);
+      Driver::sendByte(MAX7219_REG_INTENSITY, intensity);
     }
 
     /**
-       Sets the text alignment.
-       Default is TEXT_ALIGN_LEFT_END.
+      Clear the frame buffer.
 
-       @scope: display
-    */
-    void setTextAlignment(int textAlignment) {
-      myTextAlignment = textAlignment;
-      calculateTextAlignmentOffset();
-    }
-
-    /**
-       Clear the frame buffer.
-
-       @scope: display
+      @scope: display
     */
     void clear() {
       for (int col = 0; col < matrixCount * 8; col++) {
-        frameBuffer[col] = 0;
+        TFrameBuffer::frameBuffer[col] = 0;
       }
     }
 
     /**
-       Turn on pixel at position (x, y).
+      Turn on pixel at position (x, y).
 
-       @scope: display
+      @scope: display
     */
     void setPixel(int x, int y) {
-      bitWrite(frameBuffer[x], y, true);
+      bitWrite(TFrameBuffer::frameBuffer[x], y, true);
     }
 
     /**
-       Get pixel value at position (x, y)
+      Get pixel value at position (x, y)
 
-       @scope: display
+      @scope: display
     */
     bool getPixel(int x, int y) {
-      return bitRead(frameBuffer[x], y);
+      return bitRead(TFrameBuffer::frameBuffer[x], y);
     }
 
     /**
@@ -189,12 +219,10 @@ class LedMatrix {
         return 0;
 
       // draw character
-      for (int j = 0; j < char_width; j++)
-      {
+      for (int j = 0; j < char_width; j++) {
         int col = x + j;
 
-        if (col >= 0 && col < (matrixCount * 8))
-        {
+        if (col >= 0 && col < (matrixCount * 8)) {
           // read column pixels from program memory
           byte pixels = font->getCharColumn(ch, j);
 
@@ -202,8 +230,8 @@ class LedMatrix {
           pixels = (y >= 0) ? (pixels << y) : (pixels >> (-y));
 
           // update canvas
-          frameBuffer[col] &= ~(mask);
-          frameBuffer[col] |= pixels;
+          TFrameBuffer::frameBuffer[col] &= ~(mask);
+          TFrameBuffer::frameBuffer[col] |= pixels;
         }
       }
 
@@ -211,7 +239,7 @@ class LedMatrix {
     }
 
     /**
-       Draw the current text at the current offset with the current font
+      Draw the current text at the current offset with the current font
     */
     void drawText() {
       if (font == NULL) {
@@ -231,7 +259,7 @@ class LedMatrix {
     }
 
     /**
-       Set the current text.
+      Set the current text.
     */
     void setText(String text) {
       myText = text;
@@ -240,7 +268,26 @@ class LedMatrix {
     }
 
     /**
-       Writes the framebuffer to the displays.
+      Sets the text alignment.
+      Default is TEXT_ALIGN_LEFT_END.
+
+      @scope: display
+    */
+    void setTextAlignment(int textAlignment) {
+      myTextAlignment = textAlignment;
+      calculateTextAlignmentOffset();
+    }
+
+    /**
+      Scroll the text to the left.
+    */
+    void scrollTextLeft() {
+      myTextOffset = (myTextOffset - 1)
+                     % (font->getStringWidth(myText) + matrixCount * 8);
+    }
+
+    /**
+      Writes the frame buffer to the displays.
     */
     void commit() {
       byte reg[matrixCount];
@@ -259,34 +306,13 @@ class LedMatrix {
           }
         }
 
-        sendBytes(reg, data);
+        Driver::sendBytes(reg, data);
       }
     }
-
-    /**
-       Scroll the text to the left.
-    */
-    void scrollTextLeft() {
-      myTextOffset = (myTextOffset - 1) % (font->getStringWidth(myText) + matrixCount * 8);
-    }
-
 
   private:
     /**
-      Set a specific column with a byte value to the framebuffer.
-
-      @scope: framebuffer
-    */
-    void setColumn(int col, byte value) {
-      if (col < 0 || col >= matrixCount * 8) {
-        return;
-      }
-
-      frameBuffer[col] = value;
-    }
-
-    /**
-       @scope: display
+      @scope: display
     */
     void calculateTextAlignmentOffset() {
       int stringWidth = font->getStringWidth(myText);
@@ -309,8 +335,6 @@ class LedMatrix {
     }
 
   private:
-    byte frameBuffer[matrixCount * 8] = {0};
-
     Font* font = NULL;
 
     String myText;

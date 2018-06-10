@@ -1,6 +1,6 @@
 #include <SPI.h>
 #include "LedMatrix.h"
-#include "cp437font.h"
+#include "font.h"
 
 ///**
 //   Heavily influenced by the code and the blog posts from https://github.com/nickgammon/MAX7219_Dot_Matrix
