@@ -7,7 +7,7 @@
 #include <ESP8266WebServer.h>
 #include <WiFiManager.h>
 
-// NTP client from https://github.com/arduino-libraries/NTPClient
+// NTP client from https://github.com/snakeye/NTPClient
 #include <WiFiUdp.h>
 #include <NTPClient.h>
 
@@ -26,20 +26,9 @@ typedef MAX7219::LedMatrix<NUMBER_OF_DEVICES, PinAssignment> LedMatrix;
 LedMatrix ledMatrix = LedMatrix();
 Font font = Font();
 
-String getFormattedTime(long rawTime) {
-  unsigned long hours = (rawTime % 86400L) / 3600;
-  String hoursStr = String(hours);
-
-  unsigned long minutes = (rawTime % 3600) / 60;
-  String minuteStr = minutes < 10 ? "0" + String(minutes) : String(minutes);
-
-  return hoursStr + ":" + minuteStr;
-}
-
-
 /**
- * Setup
- */
+   Setup
+*/
 void setup() {
 
   //
@@ -67,7 +56,7 @@ void setup() {
   wifiManager.autoConnect();
 
   // Show hello message
-  ledMatrix.setText("Hello");
+  ledMatrix.setText("Hello!");
   ledMatrix.clear();
   ledMatrix.drawText();
   ledMatrix.commit();
@@ -81,27 +70,32 @@ void setup() {
 }
 
 /**
- * 
- */
+
+*/
 void loop() {
 
-  timeClient.update();
+  timeClient.startAsyncUpdate();
+  timeClient.processAsyncUpdate();
 
-  String formattedTime = getFormattedTime(timeClient.getEpochTime());
+  //
+  if (timeClient.getLastUpdate() != 0) {
+    String formattedTime = timeClient.getFormattedTime(NTPClient::TimeFormat::TimeFormatShort);
 
-  Serial.println(formattedTime);
+    //ledMatrix.scrollTextLeft();
+    ledMatrix.setText(formattedTime);
+  }
+  else {
+    // no update yet
+  }
 
+  //
   ledMatrix.clear();
-
-  //ledMatrix.scrollTextLeft();
-  ledMatrix.setText(formattedTime);
-  
   ledMatrix.drawText();
 
   ledMatrix.commit();
 
   //  delay(5000);
-  delay(1000);
+  delay(50);
 
   //  Serial.write(".");
 }
