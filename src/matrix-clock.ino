@@ -15,7 +15,7 @@ WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "europe.pool.ntp.org");
 
 // Led Matrix display
-#include "LedMatrix.h"
+#include <LedMatrix.h>
 
 #define NUMBER_OF_DEVICES 4
 #define CS_PIN 2
@@ -74,8 +74,7 @@ void setup() {
 */
 void loop() {
 
-  timeClient.startAsyncUpdate();
-  timeClient.processAsyncUpdate();
+  timeClient.asyncUpdate();
 
   //
   if (timeClient.getLastUpdate() != 0) {
