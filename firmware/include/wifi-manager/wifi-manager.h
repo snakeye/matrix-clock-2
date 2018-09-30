@@ -18,8 +18,7 @@
 extern "C" {
 #endif
 
-void init_wifi_manager();
-
+void wifi_manager_init();
 
 #ifdef __cplusplus
 }

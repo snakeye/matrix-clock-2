@@ -22,7 +22,7 @@
 enum mgos_app_init_result mgos_app_init(void) {
     //  LOG(LL_INFO, ("Hi there"));
         
-    init_wifi_manager();
+    wifi_manager_init();
     
     return MGOS_APP_INIT_SUCCESS;
 }
