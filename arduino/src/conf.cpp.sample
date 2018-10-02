@@ -1,0 +1,2 @@
+const char* wifi_network = "";
+const char* wifi_password = "";
