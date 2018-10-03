@@ -235,7 +235,7 @@ void loop()
   }
 
   //
-  targetIntensity = 15 - (analogRead(A0) / 64);
+  targetIntensity = (analogRead(A0) * 15) / 1024;
   if (intensity < targetIntensity)
   {
     intensity += 1;
