@@ -14,13 +14,18 @@
 #include <Wire.h>
 #include <RtcDS3231.h>
 
+// https://github.com/snakeye/MAX7219_Display
+#include <SPI.h>
+#include <LedMatrix.h>
+
+//
 #include "src/conf.h"
 
 //
 #define countof(a) (sizeof(a) / sizeof(a[0]))
 
 // pin definitions
-const byte pinLed = 2;
+// const byte pinLed = 2;
 const byte pinInterrupt = 12;
 
 //
@@ -38,15 +43,31 @@ RtcDS3231<TwoWire> Rtc(Wire);
 //
 volatile int rtcSquareCouter = 0;
 
-void ledEnable()
-{
-  digitalWrite(pinLed, LOW);
-}
 
-void ledDisable()
-{
-  digitalWrite(pinLed, HIGH);
-}
+#define NUMBER_OF_DEVICES 4
+#define CS_PIN 16
+
+typedef MAX7219::PinAssignment<CS_PIN> PinAssignment;
+typedef MAX7219::LedMatrix<NUMBER_OF_DEVICES, PinAssignment> LedMatrix;
+
+LedMatrix ledMatrix = LedMatrix();
+Font font = Font();
+
+// /**
+//  *
+//  */
+// void ledEnable()
+// {
+//   digitalWrite(pinLed, LOW);
+// }
+
+// /**
+//  *
+//  */
+// void ledDisable()
+// {
+//   digitalWrite(pinLed, HIGH);
+// }
 
 void onSTAConnected(WiFiEventStationModeConnected ipInfo)
 {
@@ -59,7 +80,7 @@ void onSTAGotIP(WiFiEventStationModeGotIP ipInfo)
   Serial.printf("Got IP: %s\r\n", ipInfo.ip.toString().c_str());
   Serial.printf("Connected: %s\r\n", WiFi.status() == WL_CONNECTED ? "yes" : "no");
 
-  ledEnable();
+  // ledEnable();
 }
 
 // Manage network disconnection
@@ -68,9 +89,12 @@ void onSTADisconnected(WiFiEventStationModeDisconnected event_info)
   Serial.printf("Disconnected from SSID: %s\n", event_info.ssid.c_str());
   Serial.printf("Reason: %d\n", event_info.reason);
 
-  ledDisable();
+  // ledDisable();
 }
 
+/**
+ * 
+ */
 void processSyncEvent(NTPSyncEvent_t ntpEvent)
 {
   if (ntpEvent)
@@ -89,20 +113,26 @@ void processSyncEvent(NTPSyncEvent_t ntpEvent)
 
     Serial.println(NTP.getTimeDateString(now));
 
-    // set RTC time
+    // update RTC time
     RtcDateTime timeNow = RtcDateTime(year(now), month(now), day(now), hour(now), minute(now), second(now));
     Rtc.SetDateTime(timeNow);
 
-    // set long interval
+    // set long polling interval
     NTP.setInterval(ntpIntervalLong);
   }
 }
 
+/**
+ * 
+ */
 void onSquareWave()
 {
   rtcSquareCouter = (rtcSquareCouter + 1) % 1024;
 }
 
+/**
+ * 
+ */
 void setup()
 {
   static WiFiEventHandler e1, e2, e3;
@@ -111,10 +141,18 @@ void setup()
   Serial.begin(115200);
 
   //
-  pinMode(pinLed, OUTPUT); // Onboard LED
-  ledDisable();
+  // pinMode(pinLed, OUTPUT); // Onboard LED
+  // ledDisable();
 
   // Init display
+  ledMatrix.init();
+  ledMatrix.setFont(&font);
+  ledMatrix.setIntensity(12);
+
+  ledMatrix.setText("WiFi");
+  ledMatrix.setTextAlignment(TEXT_ALIGN_CENTER);
+  ledMatrix.drawText();
+  ledMatrix.commit();
 
   // Init RTC
   Rtc.Begin();
@@ -122,8 +160,8 @@ void setup()
   Rtc.SetSquareWavePinClockFrequency(DS3231SquareWaveClock_1kHz);
 
   //
-  pinMode(pinInterrupt, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(pinInterrupt), onSquareWave, FALLING);
+  // pinMode(pinInterrupt, INPUT_PULLUP);
+  // attachInterrupt(digitalPinToInterrupt(pinInterrupt), onSquareWave, FALLING);
 
   // connect to WiFi
   WiFi.mode(WIFI_STA);
@@ -136,21 +174,27 @@ void setup()
   // Start NTP client
   NTP.onNTPSyncEvent(processSyncEvent);
 
-  NTP.begin(ntpServer);
   NTP.setInterval(ntpIntervalShort);
+  NTP.begin(ntpServer);
 }
 
+/**
+ * 
+ */
 void loop()
 {
-  if (WiFi.status() != WL_CONNECTED)
-  {
-    Serial.println("Connecting to WiFi...");
-  }
-
   if (!Rtc.IsDateTimeValid())
   {
-    Serial.println("RTC lost confidence in the DateTime!");
+    if (WiFi.status() != WL_CONNECTED)
+    {
+      Serial.println("Connecting to WiFi...");
+    }
+    else {
+      Serial.println("RTC lost confidence in the DateTime!");
+    }
+    
     NTP.setInterval(ntpIntervalShort);
+    NTP.getTime();
   }
   else
   {
@@ -170,7 +214,12 @@ void loop()
                minute(local));
 
     Serial.println(datestring);
+
+    ledMatrix.setText(datestring);
+    ledMatrix.clear();
+    ledMatrix.drawText();
+    ledMatrix.commit();
   }
 
-  delay(1000);
+  delay(200);
 }
