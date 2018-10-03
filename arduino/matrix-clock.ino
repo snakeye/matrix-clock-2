@@ -89,7 +89,7 @@ void onSTAGotIP(WiFiEventStationModeGotIP ipInfo)
   Serial.printf("Got IP: %s\r\n", ipInfo.ip.toString().c_str());
   Serial.printf("Connected: %s\r\n", WiFi.status() == WL_CONNECTED ? "yes" : "no");
 
-  ledEnable();
+  ledDisable();
 }
 
 /**
@@ -100,7 +100,7 @@ void onSTADisconnected(WiFiEventStationModeDisconnected event_info)
   Serial.printf("Disconnected from SSID: %s\n", event_info.ssid.c_str());
   Serial.printf("Reason: %d\n", event_info.reason);
 
-  ledDisable();
+  ledEnable();
 }
 
 /**
@@ -151,9 +151,9 @@ void setup()
   // Init serial port
   Serial.begin(115200);
 
-  //
+  // Init onboard LED
   pinMode(pinLed, OUTPUT); // Onboard LED
-  ledDisable();
+  ledEnable();
 
   // Init display
   ledMatrix.init();
