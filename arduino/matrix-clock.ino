@@ -25,7 +25,7 @@
 #define countof(a) (sizeof(a) / sizeof(a[0]))
 
 // pin definitions
-// const byte pinLed = 2;
+const byte pinLed = 2;
 const byte pinInterrupt = 12;
 
 //
@@ -43,7 +43,6 @@ RtcDS3231<TwoWire> Rtc(Wire);
 //
 volatile int rtcSquareCouter = 0;
 
-
 #define NUMBER_OF_DEVICES 4
 #define CS_PIN 16
 
@@ -53,21 +52,24 @@ typedef MAX7219::LedMatrix<NUMBER_OF_DEVICES, PinAssignment> LedMatrix;
 LedMatrix ledMatrix = LedMatrix();
 Font font = Font();
 
-// /**
-//  *
-//  */
-// void ledEnable()
-// {
-//   digitalWrite(pinLed, LOW);
-// }
+int intensity = 0;
+int targetIntensity = 12;
 
-// /**
-//  *
-//  */
-// void ledDisable()
-// {
-//   digitalWrite(pinLed, HIGH);
-// }
+/**
+ *
+ */
+void ledEnable()
+{
+  digitalWrite(pinLed, LOW);
+}
+
+/**
+ *
+ */
+void ledDisable()
+{
+  digitalWrite(pinLed, HIGH);
+}
 
 void onSTAConnected(WiFiEventStationModeConnected ipInfo)
 {
@@ -80,7 +82,7 @@ void onSTAGotIP(WiFiEventStationModeGotIP ipInfo)
   Serial.printf("Got IP: %s\r\n", ipInfo.ip.toString().c_str());
   Serial.printf("Connected: %s\r\n", WiFi.status() == WL_CONNECTED ? "yes" : "no");
 
-  // ledEnable();
+  ledEnable();
 }
 
 // Manage network disconnection
@@ -89,7 +91,7 @@ void onSTADisconnected(WiFiEventStationModeDisconnected event_info)
   Serial.printf("Disconnected from SSID: %s\n", event_info.ssid.c_str());
   Serial.printf("Reason: %d\n", event_info.reason);
 
-  // ledDisable();
+  ledDisable();
 }
 
 /**
@@ -141,13 +143,13 @@ void setup()
   Serial.begin(115200);
 
   //
-  // pinMode(pinLed, OUTPUT); // Onboard LED
-  // ledDisable();
+  pinMode(pinLed, OUTPUT); // Onboard LED
+  ledDisable();
 
   // Init display
   ledMatrix.init();
   ledMatrix.setFont(&font);
-  ledMatrix.setIntensity(12);
+  ledMatrix.setIntensity(intensity);
 
   ledMatrix.setText("WiFi");
   ledMatrix.setTextAlignment(TEXT_ALIGN_CENTER);
@@ -160,8 +162,8 @@ void setup()
   Rtc.SetSquareWavePinClockFrequency(DS3231SquareWaveClock_1kHz);
 
   //
-  // pinMode(pinInterrupt, INPUT_PULLUP);
-  // attachInterrupt(digitalPinToInterrupt(pinInterrupt), onSquareWave, FALLING);
+  pinMode(pinInterrupt, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(pinInterrupt), onSquareWave, FALLING);
 
   // connect to WiFi
   WiFi.mode(WIFI_STA);
@@ -178,6 +180,11 @@ void setup()
   NTP.begin(ntpServer);
 }
 
+char digit(int val)
+{
+  return '0' + val;
+}
+
 /**
  * 
  */
@@ -189,12 +196,17 @@ void loop()
     {
       Serial.println("Connecting to WiFi...");
     }
-    else {
+    else
+    {
       Serial.println("RTC lost confidence in the DateTime!");
     }
-    
+
     NTP.setInterval(ntpIntervalShort);
     NTP.getTime();
+
+    ledMatrix.setText("--:--");
+    ledMatrix.clear();
+    ledMatrix.drawText();
   }
   else
   {
@@ -207,19 +219,36 @@ void loop()
     // extract time components
     char datestring[20];
 
-    snprintf_P(datestring,
-               countof(datestring),
-               PSTR("%02u:%02u"),
-               hour(local),
-               minute(local));
+    int h = hour(local);
+    int m = minute(local);
+    bool dots = rtcSquareCouter < 512;
 
-    Serial.println(datestring);
-
-    ledMatrix.setText(datestring);
     ledMatrix.clear();
-    ledMatrix.drawText();
-    ledMatrix.commit();
+    ledMatrix.drawChar(3, 0, digit(h / 10));
+    ledMatrix.drawChar(9, 0, digit(h % 10));
+    if (dots)
+    {
+      ledMatrix.drawChar(15, 0, ':');
+    }
+    ledMatrix.drawChar(18, 0, digit(m / 10));
+    ledMatrix.drawChar(24, 0, digit(m % 10));
   }
 
-  delay(200);
+  //
+  targetIntensity = 15 - (analogRead(A0) / 64);
+  if (intensity < targetIntensity)
+  {
+    intensity += 1;
+    ledMatrix.setIntensity(intensity);
+  }
+  else if (intensity > targetIntensity)
+  {
+    intensity -= 1;
+    ledMatrix.setIntensity(intensity);
+  }
+
+  ledMatrix.commit();
+
+  //
+  delay(50);
 }
