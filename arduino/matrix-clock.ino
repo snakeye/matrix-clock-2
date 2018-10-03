@@ -18,7 +18,7 @@
 #include <SPI.h>
 #include <LedMatrix.h>
 
-//
+// local configuration
 #include "src/conf.h"
 
 //
@@ -28,23 +28,24 @@
 const byte pinLed = 2;
 const byte pinInterrupt = 12;
 
-//
+// Time zone
 TimeChangeRule CEST = {"CEST", Last, Sun, Mar, 2, 60 * 2};
 TimeChangeRule CET = {"CET", Last, Sun, Oct, 2, 60 * 1};
 Timezone tzBerlin(CEST, CET);
 
+// NTP 
 const char *ntpServer = "pool.ntp.org";
 const int ntpIntervalShort = 60;          // short interval while RTC clock are incorrect
 const int ntpIntervalLong = 60 * 60 * 24; // long interval while RTC clock are correct
 
-//
+// RTC clock
 RtcDS3231<TwoWire> Rtc(Wire);
 
-//
 volatile int rtcSquareCouter = 0;
 
-#define NUMBER_OF_DEVICES 4
-#define CS_PIN 16
+// MAX7219 display
+const int NUMBER_OF_DEVICES = 4;
+const int CS_PIN = 16;
 
 typedef MAX7219::PinAssignment<CS_PIN> PinAssignment;
 typedef MAX7219::LedMatrix<NUMBER_OF_DEVICES, PinAssignment> LedMatrix;
@@ -52,6 +53,7 @@ typedef MAX7219::LedMatrix<NUMBER_OF_DEVICES, PinAssignment> LedMatrix;
 LedMatrix ledMatrix = LedMatrix();
 Font font = Font();
 
+// display brightness
 int intensity = 0;
 int targetIntensity = 12;
 
@@ -71,12 +73,17 @@ void ledDisable()
   digitalWrite(pinLed, HIGH);
 }
 
+/**
+ * 
+ */
 void onSTAConnected(WiFiEventStationModeConnected ipInfo)
 {
   Serial.printf("Connected to %s\r\n", ipInfo.ssid.c_str());
 }
 
-// Start NTP only after IP network is connected
+/**
+ * Start NTP only after IP network is connected
+ */
 void onSTAGotIP(WiFiEventStationModeGotIP ipInfo)
 {
   Serial.printf("Got IP: %s\r\n", ipInfo.ip.toString().c_str());
@@ -85,7 +92,9 @@ void onSTAGotIP(WiFiEventStationModeGotIP ipInfo)
   ledEnable();
 }
 
-// Manage network disconnection
+/**
+ * Manage network disconnection
+ */
 void onSTADisconnected(WiFiEventStationModeDisconnected event_info)
 {
   Serial.printf("Disconnected from SSID: %s\n", event_info.ssid.c_str());
@@ -224,17 +233,26 @@ void loop()
     bool dots = rtcSquareCouter < 512;
 
     ledMatrix.clear();
-    ledMatrix.drawChar(3, 0, digit(h / 10));
+    
+    //
+    if (h >= 10)
+    {
+      ledMatrix.drawChar(3, 0, digit(h / 10));
+    }
     ledMatrix.drawChar(9, 0, digit(h % 10));
+
+    //
     if (dots)
     {
       ledMatrix.drawChar(15, 0, ':');
     }
+    
+    //
     ledMatrix.drawChar(18, 0, digit(m / 10));
     ledMatrix.drawChar(24, 0, digit(m % 10));
   }
 
-  //
+  // change display intensity
   targetIntensity = (analogRead(A0) * 15) / 1024;
   if (intensity < targetIntensity)
   {
