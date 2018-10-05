@@ -1,5 +1,10 @@
 #include <ESP8266WiFi.h>
 
+// OTA
+#include <ESP8266mDNS.h>
+#include <WiFiUdp.h>
+#include <ArduinoOTA.h>
+
 // https://github.com/PaulStoffregen/Time
 #include <Time.h>
 #include <TimeLib.h>
@@ -33,7 +38,7 @@ TimeChangeRule CEST = {"CEST", Last, Sun, Mar, 2, 60 * 2};
 TimeChangeRule CET = {"CET", Last, Sun, Oct, 2, 60 * 1};
 Timezone tzBerlin(CEST, CET);
 
-// NTP 
+// NTP
 const char *ntpServer = "pool.ntp.org";
 const int ntpIntervalShort = 60;          // short interval while RTC clock are incorrect
 const int ntpIntervalLong = 60 * 60 * 24; // long interval while RTC clock are correct
@@ -176,6 +181,7 @@ void setup()
 
   // connect to WiFi
   WiFi.mode(WIFI_STA);
+  WiFi.hostname("matrix-clock");
   WiFi.begin(wifi_network, wifi_password);
 
   e1 = WiFi.onStationModeGotIP(onSTAGotIP); // As soon WiFi is connected, start NTP Client
@@ -187,6 +193,13 @@ void setup()
 
   NTP.setInterval(ntpIntervalShort);
   NTP.begin(ntpServer);
+
+  //
+  MDNS.begin("matrix-clock");
+
+  // OTA
+  ArduinoOTA.setHostname("matrix-clock");
+  ArduinoOTA.begin();
 }
 
 char digit(int val)
@@ -199,6 +212,10 @@ char digit(int val)
  */
 void loop()
 {
+  //
+  ArduinoOTA.handle();
+
+  //
   if (!Rtc.IsDateTimeValid())
   {
     if (WiFi.status() != WL_CONNECTED)
@@ -233,7 +250,7 @@ void loop()
     bool dots = rtcSquareCouter < 512;
 
     ledMatrix.clear();
-    
+
     //
     if (h >= 10)
     {
@@ -246,7 +263,7 @@ void loop()
     {
       ledMatrix.drawChar(15, 0, ':');
     }
-    
+
     //
     ledMatrix.drawChar(18, 0, digit(m / 10));
     ledMatrix.drawChar(24, 0, digit(m % 10));
