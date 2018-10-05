@@ -8,7 +8,7 @@
 // https://github.com/tzapu/WiFiManager
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
-#include <WiFiManager.h> 
+#include <WiFiManager.h>
 
 // https://github.com/PaulStoffregen/Time
 #include <Time.h>
@@ -35,7 +35,7 @@
 #define countof(a) (sizeof(a) / sizeof(a[0]))
 
 //
-const char* deviceName = "matrix-clock";
+const char *deviceName = "matrix-clock";
 
 // pin definitions
 const byte pinLed = 2;
@@ -48,8 +48,8 @@ Timezone tzBerlin(CEST, CET);
 
 // NTP
 const char *ntpServer = "pool.ntp.org";
-const int ntpIntervalShort = 60;          // short interval while RTC clock are incorrect
-const int ntpIntervalLong = 60 * 60 * 6;  // long interval while RTC clock are correct
+const int ntpIntervalShort = 60;         // short interval while RTC clock are incorrect
+const int ntpIntervalLong = 60 * 60 * 6; // long interval while RTC clock are correct
 
 // RTC clock DS3231
 RtcDS3231<TwoWire> Rtc(Wire);
@@ -57,16 +57,18 @@ RtcDS3231<TwoWire> Rtc(Wire);
 volatile int rtcSquareCouter = 0;
 
 // MAX7219 display
-const int NUMBER_OF_DEVICES = 4;
-const int CS_PIN = 16;
+const int displayMatrixes = 4;
+const int pinDisplayCS = 16;
 
-typedef MAX7219::PinAssignment<CS_PIN> PinAssignment;
-typedef MAX7219::LedMatrix<NUMBER_OF_DEVICES, PinAssignment> LedMatrix;
+typedef MAX7219::PinAssignment<pinDisplayCS> PinAssignment;
+typedef MAX7219::LedMatrix<displayMatrixes, PinAssignment> LedMatrix;
 
 LedMatrix ledMatrix = LedMatrix();
 Font font = Font();
 
 // display brightness
+const int maxBrightnessTicks = 30;
+int brightnessTicks = 0;
 int intensity = 12;
 int targetIntensity = 12;
 
@@ -262,14 +264,14 @@ void loop()
     int m = minute(local);
     bool dots = rtcSquareCouter < 512;
 
-    //
+    // draw time
     if (h >= 10)
     {
       ledMatrix.drawChar(3, 0, digit(h / 10));
     }
     ledMatrix.drawChar(9, 0, digit(h % 10));
 
-    //
+    // draw dots
     if (dots)
     {
       ledMatrix.drawChar(15, 0, ':');
@@ -280,10 +282,19 @@ void loop()
     ledMatrix.drawChar(24, 0, digit(m % 10));
   }
 
+  //
   ledMatrix.commit();
 
+  // measure display intensity
+  brightnessTicks += 1;
+  if (brightnessTicks >= maxBrightnessTicks)
+  {
+    brightnessTicks = 0;
+
+    targetIntensity = (analogRead(A0) * 15) / 1024;
+  }
+
   // change display intensity
-  targetIntensity = (analogRead(A0) * 15) / 1024;
   if (intensity < targetIntensity)
   {
     intensity += 1;
