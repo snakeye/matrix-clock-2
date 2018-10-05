@@ -5,6 +5,11 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 
+// https://github.com/tzapu/WiFiManager
+#include <DNSServer.h>
+#include <ESP8266WebServer.h>
+#include <WiFiManager.h> 
+
 // https://github.com/PaulStoffregen/Time
 #include <Time.h>
 #include <TimeLib.h>
@@ -29,6 +34,9 @@
 //
 #define countof(a) (sizeof(a) / sizeof(a[0]))
 
+//
+const char* deviceName = "matrix-clock";
+
 // pin definitions
 const byte pinLed = 2;
 const byte pinInterrupt = 12;
@@ -41,9 +49,9 @@ Timezone tzBerlin(CEST, CET);
 // NTP
 const char *ntpServer = "pool.ntp.org";
 const int ntpIntervalShort = 60;          // short interval while RTC clock are incorrect
-const int ntpIntervalLong = 60 * 60 * 24; // long interval while RTC clock are correct
+const int ntpIntervalLong = 60 * 60 * 6;  // long interval while RTC clock are correct
 
-// RTC clock
+// RTC clock DS3231
 RtcDS3231<TwoWire> Rtc(Wire);
 
 volatile int rtcSquareCouter = 0;
@@ -59,7 +67,7 @@ LedMatrix ledMatrix = LedMatrix();
 Font font = Font();
 
 // display brightness
-int intensity = 0;
+int intensity = 12;
 int targetIntensity = 12;
 
 /**
@@ -180,13 +188,17 @@ void setup()
   attachInterrupt(digitalPinToInterrupt(pinInterrupt), onSquareWave, FALLING);
 
   // connect to WiFi
-  WiFi.mode(WIFI_STA);
-  WiFi.hostname("matrix-clock");
-  WiFi.begin(wifi_network, wifi_password);
+  //WiFi.mode(WIFI_STA);
+  WiFi.hostname(deviceName);
+  //WiFi.begin(wifi_network, wifi_password);
 
-  e1 = WiFi.onStationModeGotIP(onSTAGotIP); // As soon WiFi is connected, start NTP Client
+  e1 = WiFi.onStationModeGotIP(onSTAGotIP);
   e2 = WiFi.onStationModeDisconnected(onSTADisconnected);
   e3 = WiFi.onStationModeConnected(onSTAConnected);
+
+  //
+  WiFiManager wifiManager;
+  wifiManager.autoConnect("Matrix Clock");
 
   // Start NTP client
   NTP.onNTPSyncEvent(processSyncEvent);
@@ -195,13 +207,16 @@ void setup()
   NTP.begin(ntpServer);
 
   //
-  MDNS.begin("matrix-clock");
+  MDNS.begin(deviceName);
 
   // OTA
-  ArduinoOTA.setHostname("matrix-clock");
+  ArduinoOTA.setHostname(deviceName);
   ArduinoOTA.begin();
 }
 
+/**
+ * Convert integer value in range 0..9 to corresponding character
+ */
 char digit(int val)
 {
   return '0' + val;
@@ -215,6 +230,9 @@ void loop()
   //
   ArduinoOTA.handle();
 
+  // Clear display
+  ledMatrix.clear();
+
   //
   if (!Rtc.IsDateTimeValid())
   {
@@ -227,11 +245,9 @@ void loop()
       Serial.println("RTC lost confidence in the DateTime!");
     }
 
-    NTP.setInterval(ntpIntervalShort);
     NTP.getTime();
 
     ledMatrix.setText("--:--");
-    ledMatrix.clear();
     ledMatrix.drawText();
   }
   else
@@ -242,14 +258,9 @@ void loop()
     // convert UTC time to local
     time_t local = tzBerlin.toLocal(utc.Epoch32Time());
 
-    // extract time components
-    char datestring[20];
-
     int h = hour(local);
     int m = minute(local);
     bool dots = rtcSquareCouter < 512;
-
-    ledMatrix.clear();
 
     //
     if (h >= 10)
@@ -269,6 +280,8 @@ void loop()
     ledMatrix.drawChar(24, 0, digit(m % 10));
   }
 
+  ledMatrix.commit();
+
   // change display intensity
   targetIntensity = (analogRead(A0) * 15) / 1024;
   if (intensity < targetIntensity)
@@ -281,8 +294,6 @@ void loop()
     intensity -= 1;
     ledMatrix.setIntensity(intensity);
   }
-
-  ledMatrix.commit();
 
   //
   delay(50);
