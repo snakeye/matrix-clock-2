@@ -104,7 +104,7 @@ void onSTAGotIP(WiFiEventStationModeGotIP ipInfo)
   Serial.printf("Got IP: %s\r\n", ipInfo.ip.toString().c_str());
   Serial.printf("Connected: %s\r\n", WiFi.status() == WL_CONNECTED ? "yes" : "no");
 
-  ledDisable();
+  //ledDisable();
 }
 
 /**
@@ -115,7 +115,7 @@ void onSTADisconnected(WiFiEventStationModeDisconnected event_info)
   Serial.printf("Disconnected from SSID: %s\n", event_info.ssid.c_str());
   Serial.printf("Reason: %d\n", event_info.reason);
 
-  ledEnable();
+  //ledEnable();
 }
 
 /**
@@ -168,14 +168,18 @@ void setup()
 
   // Init onboard LED
   pinMode(pinLed, OUTPUT); // Onboard LED
-  ledEnable();
+  //ledEnable();
+
+  // get initial brightness
+  targetIntensity = (analogRead(A0) * 15) / 1024;
+  intensity = targetIntensity;
 
   // Init display
   ledMatrix.init();
   ledMatrix.setFont(&font);
   ledMatrix.setIntensity(intensity);
 
-  ledMatrix.setText("WiFi");
+  ledMatrix.setText("--:--");
   ledMatrix.setTextAlignment(TEXT_ALIGN_CENTER);
   ledMatrix.drawText();
   ledMatrix.commit();
