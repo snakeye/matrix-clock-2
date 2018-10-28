@@ -38,7 +38,6 @@
 const char *deviceName = "matrix-clock";
 
 // pin definitions
-const byte pinLed = 2;
 const byte pinInterrupt = 12;
 
 // Time zone
@@ -50,6 +49,8 @@ Timezone tzBerlin(CEST, CET);
 const char *ntpServer = "pool.ntp.org";
 const int ntpIntervalShort = 60;         // short interval while RTC clock are incorrect
 const int ntpIntervalLong = 60 * 60 * 6; // long interval while RTC clock are correct
+
+unsigned long lastSync = 0;
 
 // RTC clock DS3231
 RtcDS3231<TwoWire> Rtc(Wire);
@@ -67,38 +68,38 @@ LedMatrix ledMatrix = LedMatrix();
 Font font = Font();
 
 // display brightness
-const int maxBrightnessTicks = 30;
-int brightnessTicks = 0;
+const int brightnessInterval = 1000;
+unsigned long lastBrightnessTime = 0;
 int intensity = 12;
 int targetIntensity = 12;
 
 /**
- *
- */
+
+*/
 void ledEnable()
 {
-  digitalWrite(pinLed, LOW);
+  digitalWrite(LED_BUILTIN, LOW);
 }
 
 /**
- *
- */
+
+*/
 void ledDisable()
 {
-  digitalWrite(pinLed, HIGH);
+  digitalWrite(LED_BUILTIN, HIGH);
 }
 
 /**
- * 
- */
+
+*/
 void onSTAConnected(WiFiEventStationModeConnected ipInfo)
 {
   Serial.printf("Connected to %s\r\n", ipInfo.ssid.c_str());
 }
 
 /**
- * Start NTP only after IP network is connected
- */
+   Start NTP only after IP network is connected
+*/
 void onSTAGotIP(WiFiEventStationModeGotIP ipInfo)
 {
   Serial.printf("Got IP: %s\r\n", ipInfo.ip.toString().c_str());
@@ -108,8 +109,8 @@ void onSTAGotIP(WiFiEventStationModeGotIP ipInfo)
 }
 
 /**
- * Manage network disconnection
- */
+   Manage network disconnection
+*/
 void onSTADisconnected(WiFiEventStationModeDisconnected event_info)
 {
   Serial.printf("Disconnected from SSID: %s\n", event_info.ssid.c_str());
@@ -119,8 +120,8 @@ void onSTADisconnected(WiFiEventStationModeDisconnected event_info)
 }
 
 /**
- * 
- */
+
+*/
 void processSyncEvent(NTPSyncEvent_t ntpEvent)
 {
   if (ntpEvent)
@@ -143,22 +144,21 @@ void processSyncEvent(NTPSyncEvent_t ntpEvent)
     RtcDateTime timeNow = RtcDateTime(year(now), month(now), day(now), hour(now), minute(now), second(now));
     Rtc.SetDateTime(timeNow);
 
-    // set long polling interval
-    NTP.setInterval(ntpIntervalLong);
+    lastSync = millis();
   }
 }
 
 /**
- * 
- */
+   RTC Square wave interrupt - 1024Hz
+*/
 void onSquareWave()
 {
   rtcSquareCouter = (rtcSquareCouter + 1) % 1024;
 }
 
 /**
- * 
- */
+
+*/
 void setup()
 {
   static WiFiEventHandler e1, e2, e3;
@@ -167,7 +167,7 @@ void setup()
   Serial.begin(115200);
 
   // Init onboard LED
-  pinMode(pinLed, OUTPUT); // Onboard LED
+  pinMode(LED_BUILTIN, OUTPUT); // Onboard LED
   //ledEnable();
 
   // get initial brightness
@@ -179,7 +179,7 @@ void setup()
   ledMatrix.setFont(&font);
   ledMatrix.setIntensity(intensity);
 
-  ledMatrix.setText("--:--");
+  ledMatrix.setText("  :  ");
   ledMatrix.setTextAlignment(TEXT_ALIGN_CENTER);
   ledMatrix.drawText();
   ledMatrix.commit();
@@ -206,33 +206,35 @@ void setup()
   WiFiManager wifiManager;
   wifiManager.autoConnect("Matrix Clock");
 
-  // Start NTP client
-  NTP.onNTPSyncEvent(processSyncEvent);
-
-  NTP.setInterval(ntpIntervalShort);
-  NTP.begin(ntpServer);
-
   //
   MDNS.begin(deviceName);
 
   // OTA
   ArduinoOTA.setHostname(deviceName);
   ArduinoOTA.begin();
+
+  // Start NTP client
+  NTP.onNTPSyncEvent(processSyncEvent);
+
+  NTP.setInterval(ntpIntervalShort, ntpIntervalLong);
+  NTP.begin(ntpServer);
 }
 
 /**
- * Convert integer value in range 0..9 to corresponding character
- */
+   Convert integer value in range 0..9 to corresponding character
+*/
 char digit(int val)
 {
   return '0' + val;
 }
 
 /**
- * 
- */
+
+*/
 void loop()
 {
+  unsigned long now = millis();
+
   //
   ArduinoOTA.handle();
 
@@ -244,17 +246,20 @@ void loop()
   {
     if (WiFi.status() != WL_CONNECTED)
     {
+      // not connected
+      ledMatrix.setText("  :  ");
       Serial.println("Connecting to WiFi...");
     }
     else
     {
+      // connected but time is incorrect
+      ledMatrix.setText("--:--");
       Serial.println("RTC lost confidence in the DateTime!");
     }
 
-    NTP.getTime();
-
-    ledMatrix.setText("--:--");
     ledMatrix.drawText();
+
+    NTP.getTime();
   }
   else
   {
@@ -290,12 +295,11 @@ void loop()
   ledMatrix.commit();
 
   // measure display intensity
-  brightnessTicks += 1;
-  if (brightnessTicks >= maxBrightnessTicks)
+  if (now > lastBrightnessTime + brightnessInterval)
   {
-    brightnessTicks = 0;
-
     targetIntensity = (analogRead(A0) * 15) / 1024;
+
+    lastBrightnessTime = now;
   }
 
   // change display intensity
