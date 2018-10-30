@@ -50,8 +50,6 @@ const char *ntpServer = "pool.ntp.org";
 const int ntpIntervalShort = 60;         // short interval while RTC clock are incorrect
 const int ntpIntervalLong = 60 * 60 * 6; // long interval while RTC clock are correct
 
-unsigned long lastSync = 0;
-
 // RTC clock DS3231
 RtcDS3231<TwoWire> Rtc(Wire);
 
@@ -124,7 +122,7 @@ void onSTADisconnected(WiFiEventStationModeDisconnected event_info)
 */
 void processSyncEvent(NTPSyncEvent_t ntpEvent)
 {
-  if (ntpEvent)
+  if (ntpEvent != timeSyncd)
   {
     Serial.print("Time Sync error: ");
     if (ntpEvent == noResponse)
@@ -134,17 +132,14 @@ void processSyncEvent(NTPSyncEvent_t ntpEvent)
   }
   else
   {
-    Serial.print("Got NTP time: ");
-
     time_t now = NTP.getLastNTPSync();
 
+    Serial.print("Got NTP time: ");
     Serial.println(NTP.getTimeDateString(now));
 
     // update RTC time
     RtcDateTime timeNow = RtcDateTime(year(now), month(now), day(now), hour(now), minute(now), second(now));
     Rtc.SetDateTime(timeNow);
-
-    lastSync = millis();
   }
 }
 
@@ -167,7 +162,7 @@ void setup()
   Serial.begin(115200);
 
   // Init onboard LED
-  pinMode(LED_BUILTIN, OUTPUT); // Onboard LED
+  //pinMode(LED_BUILTIN, OUTPUT); // Onboard LED
   //ledEnable();
 
   // get initial brightness
@@ -299,19 +294,19 @@ void loop()
   {
     targetIntensity = (analogRead(A0) * 15) / 1024;
 
-    lastBrightnessTime = now;
-  }
+    // change display intensity
+    if (intensity < targetIntensity)
+    {
+      intensity += 1;
+      ledMatrix.setIntensity(intensity);
+    }
+    else if (intensity > targetIntensity)
+    {
+      intensity -= 1;
+      ledMatrix.setIntensity(intensity);
+    }
 
-  // change display intensity
-  if (intensity < targetIntensity)
-  {
-    intensity += 1;
-    ledMatrix.setIntensity(intensity);
-  }
-  else if (intensity > targetIntensity)
-  {
-    intensity -= 1;
-    ledMatrix.setIntensity(intensity);
+    lastBrightnessTime = now;
   }
 
   //
