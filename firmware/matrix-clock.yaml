@@ -2,6 +2,8 @@ esphome:
   name: matrix-clock
   platform: ESP8266
   board: esp12e
+  platformio_options:
+    upload_speed: 921600
   # on_boot:
   #   then:
   #     # read the RTC time once when the system boots
@@ -24,18 +26,37 @@ logger:
 # Enable Home Assistant API
 # api:
 
-ota:
+# ota:
 
 spi:
-  clk_pin: D0
-  mosi_pin: D1
+  clk_pin: GPIO14
+  mosi_pin: GPIO13
 
 time:
   - platform: sntp
+    id: sntp_time
     timezone: Europe/Berlin
 
 sensor:
   - platform: adc
     pin: A0
-    name: "Living Room Brightness"
+    name: "Matrix Clock Brightness"
     update_interval: 10s
+
+display:
+  - platform: max7219digit
+    cs_pin: GPIO16
+    num_chips: 4
+    intensity: 15
+    lambda: |-
+      it.strftime(3, 0, id(digit_font), "%H:%M", id(sntp_time).now());
+
+font:
+  - file: "pixelmix.ttf"
+    id: digit_font
+    size: 8
+
+status_led:
+  pin: 
+    number: GPIO2
+    inverted: True
