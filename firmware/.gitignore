@@ -1,5 +1,4 @@
-deps
-build
-nbproject
+.esphome
+matrix-clock
+secrets.yml
 
-.pio
