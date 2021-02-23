@@ -4,6 +4,8 @@ esphome:
   board: esp12e
   platformio_options:
     upload_speed: 921600
+  includes:
+    - ambient_light_sensor.h
   # on_boot:
   #   then:
   #     # read the RTC time once when the system boots
@@ -26,6 +28,7 @@ logger:
 # Enable Home Assistant API
 # api:
 
+# Enable OTA Firmware upload
 # ota:
 
 spi:
@@ -38,10 +41,14 @@ time:
     timezone: Europe/Berlin
 
 sensor:
-  - platform: adc
-    pin: A0
-    name: "Matrix Clock Brightness"
-    update_interval: 10s
+  - platform: custom
+    lambda: |-
+      auto ambient_light_sensor = new AmbientLightSensor();
+      App.register_component(ambient_light_sensor);
+      return {ambient_light_sensor};
+    sensors:
+      id: ambient_light
+      name: "Ambient Light Sensor"
 
 display:
   - platform: max7219digit
@@ -49,7 +56,10 @@ display:
     num_chips: 4
     intensity: 15
     lambda: |-
-      it.strftime(3, 0, id(digit_font), "%H:%M", id(sntp_time).now());
+      auto now = id(sntp_time).now();
+      it.printf(16, -1, id(digit_font), TextAlign::TOP_CENTER, "%d:%02d", now.hour, now.minute);
+
+      it.intensity(id(ambient_light).state);
 
 font:
   - file: "pixelmix.ttf"
