@@ -6,10 +6,6 @@ esphome:
     upload_speed: 921600
   includes:
     - ambient_light_sensor.h
-  # on_boot:
-  #   then:
-  #     # read the RTC time once when the system boots
-  #     ds1307.read_time:
 
 wifi:
   ssid: !secret wifi_ssid
@@ -29,16 +25,37 @@ logger:
 # api:
 
 # Enable OTA Firmware upload
-# ota:
+ota:
 
 spi:
   clk_pin: GPIO14
   mosi_pin: GPIO13
 
+i2c:
+  sda: GPIO4
+  scl: GPIO5
+
+ds3231:
+
 time:
   - platform: sntp
     id: sntp_time
     timezone: Europe/Berlin
+    on_time_sync:
+      then:
+        lambda: |-
+          auto time = id(sntp_time).now();
+          if(time.is_valid()) {
+            id(rtc_time).set_epoch_time(time.timestamp);
+          }
+
+  - platform: ds3231
+    id: rtc_time
+    timezone: Europe/Berlin
+
+sun:
+  latitude: 51.2119957
+  longitude: 6.6281018
 
 sensor:
   - platform: custom
@@ -49,15 +66,30 @@ sensor:
     sensors:
       id: ambient_light
       name: "Ambient Light Sensor"
+      filters:
+        - sliding_window_moving_average:
+          window_size: 5
+          send_every: 5
+
+  - platform: ds3231
+    temperature:
+      id: ds3231_temp
+      name: "DS3231 Temperature"
+      accuracy_decimals: 2
 
 display:
   - platform: max7219digit
     cs_pin: GPIO16
     num_chips: 4
-    intensity: 15
     lambda: |-
-      auto now = id(sntp_time).now();
-      it.printf(16, -1, id(digit_font), TextAlign::TOP_CENTER, "%d:%02d", now.hour, now.minute);
+      auto now = id(rtc_time).now();
+
+      if(now.is_valid()) {
+        it.printf(16, -1, id(digit_font), TextAlign::TOP_CENTER, "%d:%02d", now.hour, now.minute);
+      }
+      else {
+        it.print(16, -1, id(digit_font), TextAlign::TOP_CENTER, "--:--");
+      }
 
       it.intensity(id(ambient_light).state);
 
@@ -67,6 +99,6 @@ font:
     size: 8
 
 status_led:
-  pin: 
+  pin:
     number: GPIO2
     inverted: True

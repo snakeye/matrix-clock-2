@@ -13,6 +13,6 @@ class AmbientLightSensor : public PollingComponent, public Sensor {
     // This will be called by App.setup()
   }
   void update() override {
-    publish_state((analogRead(A0) * 15) / 1024);
+    publish_state((analogRead(A0) * 14) / 1024 + 1);
   }
 };

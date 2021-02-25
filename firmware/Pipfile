@@ -4,8 +4,8 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-esphome = "*"
 pillow = "*"
+esphome = {editable = true, path = "./../../esphome"}
 
 [dev-packages]
 

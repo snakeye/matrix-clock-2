@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "dc99ab40f79cd410ddfc73bfae38139cde6391eeccbb55652b803f0b28abdbd3"
+            "sha256": "621e90d5f7c3cd04a137b48dc92fac4557cfa90f1434d23a55cff7f61cda3dee"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -70,12 +70,8 @@
             "version": "==0.16.1"
         },
         "esphome": {
-            "hashes": [
-                "sha256:87c531dd51d6a09e9a85b9545657c20aaa20cb95b9e664f21d8827a927316fac",
-                "sha256:ff3dc869fd4768d8867caa998927f36fe6f4bbd39a2af9ef963407471a4a6d06"
-            ],
-            "index": "pypi",
-            "version": "==1.16.2"
+            "editable": true,
+            "path": "./../../esphome"
         },
         "esptool": {
             "hashes": [
@@ -320,10 +316,10 @@
         },
         "voluptuous": {
             "hashes": [
-                "sha256:0fff348a097c9a74f9f4a991d2cf01a6185780e997ad953bde49cb3efbb411be",
-                "sha256:3a4ef294e16f6950c79de4cba88f31092a107e6e3aaa29950b43e2bb9e1bb2dc"
+                "sha256:663572419281ddfaf4b4197fd4942d181630120fb39b333e3adad70aeb56444b",
+                "sha256:8ace33fcf9e6b1f59406bfaf6b8ec7bcc44266a9f29080b4deb4fe6ff2492386"
             ],
-            "version": "==0.12.0"
+            "version": "==0.12.1"
         }
     },
     "develop": {}
