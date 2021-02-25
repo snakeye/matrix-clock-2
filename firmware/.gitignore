@@ -1,4 +1,4 @@
-deps
-build
-nbproject
-
+.esphome
+matrix_clock
+secrets.yml
+pixelmix.ttf
