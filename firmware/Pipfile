@@ -11,3 +11,4 @@ esphome = {editable = true, path = "./../../esphome"}
 
 [requires]
 python_version = "3.8"
+PyYAML = ">=5.4"
