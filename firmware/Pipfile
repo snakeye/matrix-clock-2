@@ -5,10 +5,9 @@ name = "pypi"
 
 [packages]
 pillow = "*"
-esphome = {editable = true, path = "./../../esphome"}
+esphome = "*"
 
 [dev-packages]
 
 [requires]
-python_version = "3.8"
-PyYAML = ">=5.4"
+python_version = "3"

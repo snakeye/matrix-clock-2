@@ -1,5 +1,5 @@
 esphome:
-  name: matrix_clock
+  name: matrix-clock
   platform: ESP8266
   board: esp12e
   platformio_options:
@@ -16,13 +16,8 @@ wifi:
     ssid: "Matrix-Clock Fallback Hotspot"
     password: "dcgcN2Ao6Ilo"
 
-captive_portal:
-
 # Enable logging
 logger:
-
-# Enable Home Assistant API
-# api:
 
 # Enable OTA Firmware upload
 ota:
@@ -35,27 +30,17 @@ i2c:
   sda: GPIO4
   scl: GPIO5
 
-ds3231:
-
 time:
   - platform: sntp
     id: sntp_time
     timezone: Europe/Berlin
     on_time_sync:
       then:
-        lambda: |-
-          auto time = id(sntp_time).now();
-          if(time.is_valid()) {
-            id(rtc_time).set_epoch_time(time.timestamp);
-          }
+        ds1307.write_time:
 
-  - platform: ds3231
+  - platform: ds1307
     id: rtc_time
     timezone: Europe/Berlin
-
-sun:
-  latitude: 51.2119957
-  longitude: 6.6281018
 
 sensor:
   - platform: custom
@@ -66,12 +51,6 @@ sensor:
     sensors:
       id: ambient_light
       name: "Ambient Light Sensor"
-
-  - platform: ds3231
-    temperature:
-      id: ds3231_temp
-      name: "DS3231 Temperature"
-      accuracy_decimals: 2
 
 display:
   - platform: max7219digit
@@ -90,9 +69,10 @@ display:
       it.intensity(id(ambient_light).state);
 
 font:
-  - file: "pixelmix.ttf"
+  - file: "fonts/pixelmix.ttf"
     id: digit_font
     size: 8
+    glyphs: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ":", "-"]
 
 status_led:
   pin:
